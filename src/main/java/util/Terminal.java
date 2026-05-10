@@ -2,7 +2,7 @@ package util;
 
 public class Terminal {
 
-    public static void print(String txt) throws InterruptedException {
+    public static synchronized void print(String txt) throws InterruptedException {
         for (char ch : txt.toCharArray()) {
             System.out.print(ch);
             Thread.sleep(18);
