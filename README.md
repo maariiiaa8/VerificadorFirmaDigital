@@ -1,51 +1,67 @@
-# LetterdBox – CRUD Spring Boot
+# Verificador de Firma Digital
 
-Aplicación de consola en Java para gestionar tu propia biblioteca de películas vistas y pendientes, inspirada en Letterboxd. CRUD completo sobre una base de datos MongoDB.
+Aplicación cliente-servidor en Java que demuestra el funcionamiento de la firma digital: el servidor firma un mensaje con una clave privada RSA, y el cliente verifica la autenticidad de esa firma usando la clave pública correspondiente. Comunicación por sockets TCP, con una interfaz de terminal personalizada tipo consola de hacking.
 
 ## Funcionalidades
 
-- Añadir películas (título, director, año, género, duración, puntuación, reseña, vista/no vista)
-- Listar todas las películas guardadas
-- Buscar por título, por género, o filtrar por vistas/no vistas
-- Actualizar cualquier campo de una película existente
-- Eliminar películas, con confirmación previa
-- Validaciones de datos (año, puntuación 0-5, campos obligatorios)
+- Generación de un par de claves RSA (2048 bits) en el servidor
+- Firma digital de mensajes con `SHA256withRSA`
+- Envío de clave pública, mensaje y firma al cliente vía sockets
+- Verificación de la firma en el cliente con la clave pública recibida
+- Gestión de múltiples clientes en cola (productor-consumidor con `BlockingQueue`)
+- Salida de terminal estilizada (cabeceras, logs con formato propio)
+
+## Cómo funciona
+
+1. El **servidor** arranca y espera conexiones en el puerto `5000`
+2. Cada **cliente** se conecta, se identifica con un nombre y queda en cola
+3. Desde el servidor, se escribe un mensaje para el cliente en cola
+4. El servidor genera un par de claves RSA, firma el mensaje con la clave privada, y envía al cliente: la clave pública, el mensaje y la firma
+5. El cliente verifica la firma con la clave pública recibida y muestra si es **válida** o **inválida**
 
 ## Stack tecnológico
 
-- **Java 21**
-- **Spring Boot 3.2** (arranque de contexto, inyección de dependencias)
-- **Spring Data MongoDB** como capa de persistencia
-- **Maven** como gestor de dependencias
-- JUnit 5 para tests
-
-> Nota: el `pom.xml` incluye dependencias de JavaFX pensadas para una futura interfaz gráfica; por ahora la aplicación funciona por consola.
+- **Java 23**
+- Sockets TCP (`java.net`)
+- Java Security API (`KeyPairGenerator`, `Signature`, RSA)
+- Concurrencia con `BlockingQueue` e hilos (`Thread`)
+- Maven
 
 ## Arquitectura
 
 ```
-Main (menú por consola)
-  └── PeliculaService (lógica de negocio)
-        └── PeliculaRepository (Spring Data MongoDB)
-              └── Pelicula (documento MongoDB)
+servidor/
+  Servidor.java        → acepta conexiones, gestiona cola de clientes
+  GestorClientes.java  → representa un cliente conectado
+  GestorFirma.java      → genera claves RSA y firma mensajes
+
+cliente/
+  Cliente.java             → se conecta, recibe clave/mensaje/firma
+  VerificadorFirma.java    → verifica la firma con la clave pública
+
+util/
+  Terminal.java         → utilidades de formato de salida por consola
 ```
 
 ## Puesta en marcha
 
-Requisitos: Java 21, Maven, MongoDB corriendo en `localhost:27017`.
+Requisitos: Java 23, Maven.
 
 ```bash
 # Compilar
-./mvnw clean install
-
-# Ejecutar
-./mvnw spring-boot:run
+mvn clean install
 ```
 
-La aplicación conecta por defecto a la base de datos `letterboxdDB`. Puedes cambiar la conexión en `src/main/resources/application.properties`.
-
-## Tests
+Ejecuta primero el servidor y luego uno o varios clientes, cada uno en su propia terminal:
 
 ```bash
-./mvnw test
+# Terminal 1: servidor
+mvn exec:java -Dexec.mainClass="servidor.Servidor"
+
+# Terminal 2: cliente
+mvn exec:java -Dexec.mainClass="cliente.Cliente"
 ```
+
+## Demo
+
+El repositorio incluye un diagrama del flujo (`diagrama.png`) y un vídeo de demostración de la aplicación en funcionamiento.
